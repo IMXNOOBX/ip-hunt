@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "node-masscan": "^1.0.1",
+    "quick.db": "^9.0.6"
+  }
+}
