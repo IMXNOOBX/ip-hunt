@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "better-sqlite3": "^7.6.2",
+    "cli-color": "^2.0.3",
+    "mc-server-status": "^2.0.2",
     "node-masscan": "^1.0.1",
     "quick.db": "^9.0.6"
   }
