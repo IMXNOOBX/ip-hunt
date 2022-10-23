@@ -24,16 +24,14 @@ async function onServerFound(data) {
     // Player DB
     let players = (data.players ? data.players : {}).sample || []; players = players.filter(p => (p && p.id && p.id.length > 10 && p.name && !p.name.startsWith("§")));
     players.forEach(async player => {
-        let player_exists = await scan_db.has(`players`).catch(e => {  throw e });
-        console.log("player_exists: "+ Array.from(player_exists).includes("asdsad"))
+        let player_exists = await scan_db.get(`players`).catch(e => { throw e }); player_exists = player_exists ? player_exists.some(row => row.name == player.name) : false;
 
-
-        console.log("player_exists: "+player_exists)
         if (!player_exists) {
             player.serversPlayed = [data.ip];
-            await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed}).catch(e => {  throw e}); // Exception
+            await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed }).catch(e => { throw e }); // Exception
         } else {
-            let player_data = await scan_db.get(player.id).catch(e => { throw e });
+            let player_data = await scan_db.get(`players`).catch(e => { throw e });
+            console.log(player_data)
             let servers_played = player_data.serversPlayed;
             let server_index = servers_played.findIndex(s => s == data.ip);
             if (server_index == -1) {
@@ -49,7 +47,7 @@ async function onServerFound(data) {
     let discovered = new Date()
     if (server_exists) {
         console.log("\t╘═► Server already exists, updating lastTimeOnline");
-        let oldData = await scan_db.get(data.ip).catch(e => { console.log("Server get: "+e) });
+        let oldData = await scan_db.get(data.ip).catch(e => { console.log("Server get: " + e) });
         console.log("Server ip")
         for (let player of players) {
             player.serversPlayed = undefined;
@@ -114,15 +112,15 @@ async function getAll() {
     console.log("Getting all")
     await scan_db.all().then(array => {
         console.log(array)
-        if(array.length > 0)
+        if (array.length > 0)
             fs.writeFileSync('./scan_db.json', JSON.stringify(array));
     })
 }
 
-(async() => {
+(async () => {
     console.log("Getting 157.90.56.39")
     getStatus("157.90.56.39", 25565, { timeout: 1500 }).then((response) => {
-        console.log(response)
+        console.log(JSON.stringify(response))
 
         response.ip = "157.90.56.39";
         // response.ping = undefined;
@@ -137,7 +135,7 @@ async function getAll() {
         console.log(`Found : ${response.ip} on port 25565 | rate=null percentage=null%`);
         onServerFound(response).catch(e => { throw e });
         console.log("Finished getting 2b2t.org")
-    }).catch((reason) => { console.log(reason)});
+    }).catch((reason) => { console.log(reason) });
 
     //getAll()
 })();
