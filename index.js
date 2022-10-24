@@ -48,7 +48,7 @@ async function onServerFound(data) {
             let server_index = servers_played[0] == data.ip ? true : false;
             if (!server_index) {
                 servers_played.push(data.ip);
-                console.log(`\t${clc.magenta.underline("[RARE]")} ${clc.yellowBright(player.name)} plays on ${clc.redBright(servers_played.join(", "))}`);
+                log.console(`"[RARE]" ${player.name} plays on ${servers_played.join(", ")}`);
             }
             await scan_db.push(`players.${player_data.name}`, player_data).catch(e => { throw e });
         }
@@ -59,7 +59,7 @@ async function onServerFound(data) {
      * @param servers_db will have an array from the database with all the servers
      * ! Improove code
      */
-     if (server_exists) return console.log("Already seen server: "+ data.ip+ " skipping!");
+    // if (server_exists) return log.console("Already seen server: "+ data.ip+ ", skipping!");
     let discovered = new Date()
     data.discovered = discovered;
     data.lastTimeOnline = Date.now();
@@ -79,14 +79,13 @@ async function onServerFound(data) {
         discovered: discovered,
         lastTimeOnline: new Date()
     }).catch(e => { throw e });
-    console.log("Server Finish")
 
     if(cfg.scanning_alerts.key_strings) {
         console.log("adsadasda")
         cfg.scanning_alerts.key_strings.forEach(str => {
-            console.log(data.toString().includes(str))
-            if(Array.from(data).includes(str)) // Fix this bozo
-                log.success(`Found the key string ${str} on a server request\nIP: ${data.ip}\nMOTD: ${data.description}\nVersion: ${data.version}`)
+            console.log(JSON.stringify(data).includes(str))
+            if(JSON.stringify(data).includes(str))
+                log.success(`Found the key string ${str} on a server request\nIP: ${data.ip}\nMOTD: ${JSON.stringify(data.description)}\nVersion: ${(data.version ? data.version : {}).name}`)
         })
     }
 }
@@ -120,9 +119,7 @@ masscan.on('complete', () => {
 
 
 async function getAll() {
-    console.log("Getting all")
     await scan_db.all().then(array => {
-        console.log(array)
         if (array.length > 0)
             fs.writeFileSync('./scan_db.json', JSON.stringify(array));
     })
