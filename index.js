@@ -28,38 +28,13 @@ let masscan = new Masscan();
 async function onServerFound(data) {
     let servers_db = await scan_db.get(`servers`).catch(e => { throw e }); // https://quickdb.js.org/overview/docs#has
     let server_exists = servers_db ? servers_db.map(a => a.ip == data.ip ? true : false) : false;
-    let players_db = await scan_db.get(`players`).catch(e => { throw e });
-
-    /**
-     * * Player DB
-     * @param players will filter players from fake players and add them to an array
-     * ! Improove code
-     */
-    let players = (data.players ? data.players : {}).sample || []; players = players.filter(p => (p && p.id && p.id.length > 10 && p.name && !p.name.startsWith("§")));
-    players.forEach(async player => {
-        let player_exists = players_db ? players_db.map(a => a.id == player.id)[0] : false;
-        console.log(player_exists)
-        if (!player_exists) {
-            player.serversPlayed = [data.ip];
-            await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed }).catch(e => { throw e });
-        } else {
-            let player_data = players_db.map(a => a.name == player.name ? a : null)[0];
-            let servers_played = player_data.serversPlayed;
-            let server_index = servers_played[0] == data.ip ? true : false;
-            if (!server_index) {
-                servers_played.push(data.ip);
-                log.console(`"[RARE]" ${player.name} plays on ${servers_played.join(", ")}`);
-            }
-            await scan_db.push(`players.${player_data.name}`, player_data).catch(e => { throw e });
-        }
-    });
 
     /**
      * * Server DB
      * @param servers_db will have an array from the database with all the servers
      * ! Improove code
      */
-    // if (server_exists) return log.console("Already seen server: "+ data.ip+ ", skipping!");
+    if (server_exists) return log.console("Already seen server: "+ data.ip+ ", skipping!");
     let discovered = new Date()
     data.discovered = discovered;
     data.lastTimeOnline = Date.now();
