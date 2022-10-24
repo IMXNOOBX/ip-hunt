@@ -16,25 +16,32 @@ const rl = readline.createInterface({
 
 let masscan = new Masscan();
 
+/**
+ * * onServerFound(data)
+ * @param {data} object with the required information to process all the data
+ */
 async function onServerFound(data) {
-    let server_exists = await scan_db.has(`servers.${data.ip}`); // https://quickdb.js.org/overview/docs#has
-    //console.log("server_exists: "+server_exists)
-    //console.log("servers: "+await scan_db.get(`servers.${data.ip}`))
+    let servers_db = await scan_db.get(`servers`); // https://quickdb.js.org/overview/docs#has
+    let players_db = await scan_db.get(`players`).catch(e => { throw e });
+    let server_exists = servers_db ? servers_db.map(a => a.ip == data.ip ? true : false) : false;
 
-    // Player DB
+    /**
+     * * Player DB
+     * @param players will filter players from fake players and add them to an array
+     * ! Improove code
+     */
     let players = (data.players ? data.players : {}).sample || []; players = players.filter(p => (p && p.id && p.id.length > 10 && p.name && !p.name.startsWith("§")));
     players.forEach(async player => {
-        let player_exists = await scan_db.get(`players`).catch(e => { throw e }); player_exists = player_exists ? player_exists.some(row => row.name == player.name) : false;
+        let player_exists = players_db ? players_db.map(a => a.name == player.name) : false;
 
         if (!player_exists) {
             player.serversPlayed = [data.ip];
             await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed }).catch(e => { throw e }); // Exception
         } else {
-            let player_data = await scan_db.get(`players`).catch(e => { throw e });
-            console.log(player_data)
+            let player_data = players_db.map(a => a.name == player.name ? a : null)[0];
             let servers_played = player_data.serversPlayed;
-            let server_index = servers_played.findIndex(s => s == data.ip);
-            if (server_index == -1) {
+            let server_index = servers_played[0] == data.ip ? true : false;
+            if (!server_index) {
                 servers_played.push(data.ip);
                 console.log(`\t${clc.magenta.underline("[RARE]")} ${clc.yellowBright(player.name)} plays on ${clc.redBright(servers_played.join(", "))}`);
             }
@@ -42,22 +49,33 @@ async function onServerFound(data) {
         }
     });
 
-    return;
-    //Server DB
+    /**
+     * * Server DB
+     * @param servers_db will have an array from the database with all the servers
+     * ! Improove code
+     */
     let discovered = new Date()
     if (server_exists) {
         console.log("\t╘═► Server already exists, updating lastTimeOnline");
-        let oldData = await scan_db.get(data.ip).catch(e => { console.log("Server get: " + e) });
-        console.log("Server ip")
+        let server_index = -1;
+        let server_data = servers_db.map((a, index) => {
+            if(a.ip == data.ip) {
+                server_index = index;
+                return a
+            }
+        })[0];
+        console.log(server_data)
         for (let player of players) {
             player.serversPlayed = undefined;
-            if (!oldData.players.some(p => p === player.id)) {
-                oldData.players.push(player.id);
+            if (!server_data.players.some(p => p === player.id)) {
+                server_data.players.push(player.id);
                 print(`\t╘═► ${clc.yellowBright(player.name)} is a new player on that server (${clc.blackBright(player.id)})`);
             }
         }
-        discovered = oldData.discovered;
-        players = oldData.players.filter(p => (p && p.length > 10)).map(p => { return { id: p } });
+        discovered = server_data.discovered;
+        players = server_data.players.filter(p => (p && p.length > 10)).map(p => { return { id: p } });
+
+        return await scan_db.set(`servers.[${server_data.server_index}]`, server_data); // set the new value and return
     }
     data.discovered = discovered;
     data.lastTimeOnline = Date.now();
@@ -118,11 +136,8 @@ async function getAll() {
 }
 
 (async () => {
-    console.log("Getting 157.90.56.39")
-    getStatus("157.90.56.39", 25565, { timeout: 1500 }).then((response) => {
-        console.log(JSON.stringify(response))
-
-        response.ip = "157.90.56.39";
+    getStatus("connect.2b2t.org", 25565, { timeout: 1500 }).then((response) => {
+        response.ip = "connect.2b2t.org";
         // response.ping = undefined;
         // response.favicon = undefined;
         response.modded = false;
@@ -132,12 +147,10 @@ async function getAll() {
             response.modpackData = undefined;
             response.modded = true;
         }
-        console.log(`Found : ${response.ip} on port 25565 | rate=null percentage=null%`);
         onServerFound(response).catch(e => { throw e });
-        console.log("Finished getting 2b2t.org")
     }).catch((reason) => { console.log(reason) });
 
-    //getAll()
+    getAll()
 })();
 
 
