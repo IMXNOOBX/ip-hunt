@@ -2,20 +2,16 @@ const readline = require('readline');
 const { Masscan } = require('node-masscan');
 const { QuickDB } = require("quick.db");
 const { getStatus } = require("mc-server-status");
-const {Webhook} = require('dis-logs')
+const { Webhook } = require('dis-logs')
 const fs = require("fs");
 const cfg = require('./config/config.json')
 
 const scan_db = new QuickDB();
-// const server_table = db.table('servers') // cannot be done like this cause the "key" parameter cannot have dots "." as quckdb uses them to identify things
-// const players_table = db.table('players')
-
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
-
 
 const log = new Webhook(cfg.scanning_alerts.webhook);
 
@@ -34,7 +30,7 @@ async function onServerFound(data) {
      * @param servers_db will have an array from the database with all the servers
      * ! Improove code
      */
-    if (server_exists) return log.console("Already seen server: "+ data.ip+ ", skipping!");
+    if (server_exists) return log.console("Already seen server: " + data.ip + ", skipping!");
     let discovered = new Date()
     data.discovered = discovered;
     data.lastTimeOnline = Date.now();
@@ -55,54 +51,38 @@ async function onServerFound(data) {
         lastTimeOnline: new Date()
     }).catch(e => { throw e });
 
-    if(cfg.scanning_alerts.key_strings) {
-        console.log("adsadasda")
+    if (cfg.scanning_alerts.key_strings) {
         cfg.scanning_alerts.key_strings.forEach(str => {
-            console.log(JSON.stringify(data).includes(str))
-            if(JSON.stringify(data).includes(str))
+            if (JSON.stringify(data).includes(str))
                 log.success(`Found the key string ${str} on a server request\nIP: ${data.ip}\nMOTD: ${JSON.stringify(data.description)}\nVersion: ${(data.version ? data.version : {}).name}`)
         })
     }
 }
 
-/*
+
+/**
+ * * exportData()
+ * Exports all the data inside quick.db database to a json file
+ * @output scan_db_<hour>_<minute>.json
+ */
+async function exportData() {
+    let exd = new Date()
+    await scan_db.all().then(array => {
+        if (array.length > 0)
+            fs.writeFileSync(`./scan_db_${exd.getHours()}_${exd.getMinutes()}.json`, JSON.stringify(array));
+    })
+    log.success(`Exported all database to: ./scan_db_${exd.getHours()}_${exd.getMinutes()}.json`)
+}
+
+/**
+ * * found
+ * Triggers every time masscan recives a response
+ * @param ip of the server
+ * @param port is not used as we only scan in 1 port
+ */
 masscan.on('found', (ip, port) => {
     getStatus(ip, 25565, { timeout: 1500 }).then((response) => {
         response.ip = ip;
-        response.ping = undefined;
-        response.favicon = undefined;
-        response.modded = false;
-        if (response.forgeData || response.modinfo || response.modpackData) {
-            response.forgeData = undefined;
-            response.modinfo = undefined;
-            response.modpackData = undefined;
-            response.modded = true;
-        }
-        console.log(`Found : ${clc.redBright(ip)} on port ${ports}   |   rate=${masscan.rate} percentage=${masscan.percentage}%`);
-        onServerFound(response).catch(e => { throw e });
-    }).catch((reason) => { });
-})
-
-masscan.on('error', (message) => {
-    console.log(`Masscan error : ${message}`);
-});
-
-masscan.on('complete', () => {
-    console.log(clc.greenBright("Congrats, you scanned the entire internet !"));
-    exit(0);
-})*/
-
-
-async function getAll() {
-    await scan_db.all().then(array => {
-        if (array.length > 0)
-            fs.writeFileSync('./scan_db.json', JSON.stringify(array));
-    })
-}
-
-(async () => {
-    getStatus("157.90.56.39", 25565, { timeout: 1500 }).then((response) => {
-        response.ip = "157.90.56.39";
         // response.ping = undefined;
         // response.favicon = undefined;
         response.modded = false;
@@ -113,19 +93,40 @@ async function getAll() {
             response.modded = true;
         }
         onServerFound(response).catch(e => { throw e });
-    }).catch((reason) => { console.log(reason) });
-
-    getAll()
-})();
+    }).catch((reason) => { log.error(`mc-server-status exception: ${message}`); });
+})
 
 
-// rl.question('Start Scannig? ', function (answer) {
-//     if (answer.toLocaleLowerCase() == "yes" || answer.toLocaleLowerCase() == "y")
-//         masscan.start(cfg.IPRange, cfg.portRange, cfg.maxRate, cfg.excludeConf);
-//     else
-//         console.log("Cancelled")
-//     rl.close();
-// });
+/**
+ * * error
+ * Triggers every time node-masscan gets an exception
+ * @param message of the error
+ */
+masscan.on('error', (message) => {
+    log.error(`node-masscan exception: ${message}`);
+});
+
+/**
+ * * complete
+ * Triggers only wen the scan has been finished
+ */
+masscan.on('complete', () => {
+    log.success("Congrats, you scanned the entire internet!");
+    exportData();
+    exit(0);
+})
+
+
+rl.question(`Start scannig ip-range (${cfg.IPRange}), port-range (${cfg.portRange}), at rate of (${cfg.maxRate}p/s)? (Y/N) `, function (answer) {
+    if (answer.toLocaleLowerCase() == "yes" || answer.toLocaleLowerCase() == "y") {
+        log.console("Starting node-masscan...")
+        masscan.start(cfg.IPRange, cfg.portRange, cfg.maxRate, cfg.excludeConf);
+    }
+    else {
+        log.console("Cancelled.")
+        rl.close();
+    }
+});
 
 
 /*
