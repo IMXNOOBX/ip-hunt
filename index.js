@@ -7,6 +7,8 @@ var clc = require("cli-color");
 const cfg = require('./config/config.json')
 
 const scan_db = new QuickDB();
+// const server_table = db.table('servers') // cannot be done like this cause the "key" parameter cannot have dots "." as quckdb uses them to identify things
+// const players_table = db.table('players')
 
 
 const rl = readline.createInterface({
@@ -21,7 +23,7 @@ let masscan = new Masscan();
  * @param {data} object with the required information to process all the data
  */
 async function onServerFound(data) {
-    let servers_db = await scan_db.get(`servers`); // https://quickdb.js.org/overview/docs#has
+    let servers_db = await scan_db.get(`servers`).catch(e => { throw e }); // https://quickdb.js.org/overview/docs#has
     let players_db = await scan_db.get(`players`).catch(e => { throw e });
     let server_exists = servers_db ? servers_db.map(a => a.ip == data.ip ? true : false) : false;
 
@@ -36,7 +38,7 @@ async function onServerFound(data) {
 
         if (!player_exists) {
             player.serversPlayed = [data.ip];
-            await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed }).catch(e => { throw e }); // Exception
+            await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed }).catch(e => { throw e });
         } else {
             let player_data = players_db.map(a => a.name == player.name ? a : null)[0];
             let servers_played = player_data.serversPlayed;
@@ -94,7 +96,7 @@ async function onServerFound(data) {
         online: online !== undefined ? online : null,
         discovered: discovered,
         lastTimeOnline: new Date()
-    }).catch(e => { throw e }); // Exception
+    }).catch(e => { throw e });
     console.log("Server Finish")
 }
 
