@@ -3,7 +3,6 @@ const { Masscan } = require('node-masscan');
 const { QuickDB } = require("quick.db");
 const { getStatus } = require("mc-server-status");
 const fs = require("fs");
-var clc = require("cli-color");
 const cfg = require('./config/config.json')
 
 const scan_db = new QuickDB();
@@ -24,8 +23,8 @@ let masscan = new Masscan();
  */
 async function onServerFound(data) {
     let servers_db = await scan_db.get(`servers`).catch(e => { throw e }); // https://quickdb.js.org/overview/docs#has
-    let players_db = await scan_db.get(`players`).catch(e => { throw e });
     let server_exists = servers_db ? servers_db.map(a => a.ip == data.ip ? true : false) : false;
+    let players_db = await scan_db.get(`players`).catch(e => { throw e });
 
     /**
      * * Player DB
@@ -34,8 +33,8 @@ async function onServerFound(data) {
      */
     let players = (data.players ? data.players : {}).sample || []; players = players.filter(p => (p && p.id && p.id.length > 10 && p.name && !p.name.startsWith("§")));
     players.forEach(async player => {
-        let player_exists = players_db ? players_db.map(a => a.name == player.name) : false;
-
+        let player_exists = players_db ? players_db.map(a => a.id == player.id)[0] : false;
+        console.log(player_exists)
         if (!player_exists) {
             player.serversPlayed = [data.ip];
             await scan_db.push("players", { name: player.name, id: player.id, serversPlayed: player.serversPlayed }).catch(e => { throw e });
@@ -47,7 +46,7 @@ async function onServerFound(data) {
                 servers_played.push(data.ip);
                 console.log(`\t${clc.magenta.underline("[RARE]")} ${clc.yellowBright(player.name)} plays on ${clc.redBright(servers_played.join(", "))}`);
             }
-            await scan_db.push("players", player_data).catch(e => { throw e });
+            await scan_db.push(`players.${player_data.name}`, player_data).catch(e => { throw e });
         }
     });
 
@@ -56,29 +55,8 @@ async function onServerFound(data) {
      * @param servers_db will have an array from the database with all the servers
      * ! Improove code
      */
+     if (server_exists) return console.log("Already seen server: "+ data.ip+ " skipping!");
     let discovered = new Date()
-    if (server_exists) {
-        console.log("\t╘═► Server already exists, updating lastTimeOnline");
-        let server_index = -1;
-        let server_data = servers_db.map((a, index) => {
-            if(a.ip == data.ip) {
-                server_index = index;
-                return a
-            }
-        })[0];
-        console.log(server_data)
-        for (let player of players) {
-            player.serversPlayed = undefined;
-            if (!server_data.players.some(p => p === player.id)) {
-                server_data.players.push(player.id);
-                print(`\t╘═► ${clc.yellowBright(player.name)} is a new player on that server (${clc.blackBright(player.id)})`);
-            }
-        }
-        discovered = server_data.discovered;
-        players = server_data.players.filter(p => (p && p.length > 10)).map(p => { return { id: p } });
-
-        return await scan_db.set(`servers.[${server_data.server_index}]`, server_data); // set the new value and return
-    }
     data.discovered = discovered;
     data.lastTimeOnline = Date.now();
     let online = (data.players || {}).online;
@@ -91,7 +69,7 @@ async function onServerFound(data) {
         modded: data.modded,
         allow_crack: null,
         whitelist: null,
-        players: players.map(p => p.id),
+        players: players.map(p => p),
         max_players: (data.players ? data.players : {}).max || null,
         online: online !== undefined ? online : null,
         discovered: discovered,
@@ -138,8 +116,8 @@ async function getAll() {
 }
 
 (async () => {
-    getStatus("connect.2b2t.org", 25565, { timeout: 1500 }).then((response) => {
-        response.ip = "connect.2b2t.org";
+    getStatus("157.90.56.39", 25565, { timeout: 1500 }).then((response) => {
+        response.ip = "157.90.56.39";
         // response.ping = undefined;
         // response.favicon = undefined;
         response.modded = false;
