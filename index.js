@@ -2,6 +2,7 @@ const readline = require('readline');
 const { Masscan } = require('node-masscan');
 const { QuickDB } = require("quick.db");
 const { getStatus } = require("mc-server-status");
+const {Webhook} = require('dis-logs')
 const fs = require("fs");
 const cfg = require('./config/config.json')
 
@@ -14,6 +15,9 @@ const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
+
+
+const log = new Webhook(cfg.scanning_alerts.webhook);
 
 let masscan = new Masscan();
 
@@ -76,6 +80,15 @@ async function onServerFound(data) {
         lastTimeOnline: new Date()
     }).catch(e => { throw e });
     console.log("Server Finish")
+
+    if(cfg.scanning_alerts.key_strings) {
+        console.log("adsadasda")
+        cfg.scanning_alerts.key_strings.forEach(str => {
+            console.log(data.toString().includes(str))
+            if(Array.from(data).includes(str)) // Fix this bozo
+                log.success(`Found the key string ${str} on a server request\nIP: ${data.ip}\nMOTD: ${data.description}\nVersion: ${data.version}`)
+        })
+    }
 }
 
 /*
