@@ -102,3 +102,8 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Custom
+scan_db*
+json.sqlite
+config.json

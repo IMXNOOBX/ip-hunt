@@ -1,0 +1,14 @@
+{
+	"IPRange": "0.0.0.0/0",
+	"portRange": "25565",
+	"maxRate": 100,
+	"excludeConf": "config/exclude.conf",
+	"scanning_alerts": {
+		"webhook": "",
+		"key_strings": [
+			"Minecraft Server",
+			"Friend",
+			"Funny"
+		]
+	}
+}
