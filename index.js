@@ -1,12 +1,12 @@
 const readline = require('readline');
 const { Masscan } = require('node-masscan');
-const { QuickDB } = require("quick.db");
+const JSONdb = require('simple-json-db');
 const { getStatus } = require("mc-server-status");
 const { Webhook } = require('dis-logs')
 const fs = require("fs");
 const cfg = require('./config/config.json')
 
-const scan_db = new QuickDB();
+const scan_db = new JSONdb('scan_db.json', {asyncWrite: true, syncOnWrite: true});
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -22,8 +22,8 @@ let masscan = new Masscan();
  * @param {data} object with the required information to process all the data
  */
 async function onServerFound(data) {
-    let servers_db = await scan_db.get(`servers`).catch(e => { throw e }); // https://quickdb.js.org/overview/docs#has
-    let server_exists = servers_db ? servers_db.map(a => a.ip == data.ip ? true : false) : false;
+    let server_exists = await scan_db.has(data.ip)// https://quickdb.js.org/overview/docs#has
+    //let server_exists = servers_db ? servers_db.map(a => a.ip == data.ip ? true : false) : false;
 
     /**
      * * Server DB
@@ -32,10 +32,11 @@ async function onServerFound(data) {
      */
     if (server_exists) return log.console("Already seen server: " + data.ip + ", skipping!");
     let discovered = new Date()
+    let players = (data.players ? data.players : {}).sample || []; players = players.filter(p => (p && p.id && p.id.length > 10 && p.name && !p.name.startsWith("§")));
     data.discovered = discovered;
     data.lastTimeOnline = Date.now();
     let online = (data.players || {}).online;
-    await scan_db.push("servers", {
+    await scan_db.set(data.ip, {
         ip: data.ip,
         description: typeof data.description == "string" ? data.description : JSON.stringify(data.description),
         version: (data.version ? data.version : {}).name || null,
@@ -49,7 +50,7 @@ async function onServerFound(data) {
         online: online !== undefined ? online : null,
         discovered: discovered,
         lastTimeOnline: new Date()
-    }).catch(e => { throw e });
+    });
 
     if (cfg.scanning_alerts.key_strings) {
         cfg.scanning_alerts.key_strings.forEach(str => {
@@ -57,21 +58,6 @@ async function onServerFound(data) {
                 log.success(`Found the key string ${str} on a server request\nIP: ${data.ip}\nMOTD: ${JSON.stringify(data.description)}\nVersion: ${(data.version ? data.version : {}).name}`)
         })
     }
-}
-
-
-/**
- * * exportData()
- * Exports all the data inside quick.db database to a json file
- * @output scan_db_<hour>_<minute>.json
- */
-async function exportData() {
-    let exd = new Date()
-    await scan_db.all().then(array => {
-        if (array.length > 0)
-            fs.writeFileSync(`./scan_db_${exd.getHours()}_${exd.getMinutes()}.json`, JSON.stringify(array));
-    })
-    log.success(`Exported all database to: ./scan_db_${exd.getHours()}_${exd.getMinutes()}.json`)
 }
 
 /**
@@ -92,10 +78,10 @@ masscan.on('found', (ip, port) => {
             response.modpackData = undefined;
             response.modded = true;
         }
+         log.console(`Server found "${ip}" on port "${port}", rate: ${masscan.rate} and progress: ${masscan.percentage}/100%`)
         onServerFound(response).catch(e => { throw e });
     }).catch((reason) => { log.error(`mc-server-status exception: ${message}`); });
 })
-
 
 /**
  * * error
@@ -115,7 +101,6 @@ masscan.on('complete', () => {
     exportData();
     exit(0);
 })
-
 
 rl.question(`Start scannig ip-range (${cfg.IPRange}), port-range (${cfg.portRange}), at rate of (${cfg.maxRate}p/s)? (Y/N) `, function (answer) {
     if (answer.toLocaleLowerCase() == "yes" || answer.toLocaleLowerCase() == "y") {

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/iphunt-1.0.6-green.svg?style=flat&logo=github">
+<img src="https://img.shields.io/badge/iphunt-1.0.7-green.svg?style=flat&logo=github">
 
 Did you ever heard "that's like looking for a needle in a haystack"? Well, this project plans to solve that. A simple minecraft server scanner that stores the data collected using quick.db 
 

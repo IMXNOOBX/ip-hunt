@@ -106,4 +106,3 @@ dist
 # Custom
 scan_db*
 json.sqlite
-config.json
