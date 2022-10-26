@@ -80,7 +80,7 @@ masscan.on('found', (ip, port) => {
         }
          log.console(`Server found "${ip}" on port "${port}", rate: ${masscan.rate} and progress: ${masscan.percentage}/100%`)
         onServerFound(response).catch(e => { throw e });
-    }).catch((reason) => { log.error(`mc-server-status exception: ${message}`); });
+    }).catch((reason) => { log.error(`mc-server-status exception: ${reason}`); });
 })
 
 /**
