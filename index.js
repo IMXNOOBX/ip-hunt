@@ -98,7 +98,7 @@ masscan.on('error', (message) => {
  */
 masscan.on('complete', () => {
     log.success("Congrats, you scanned the entire internet!");
-    exportData();
+    //exportData();
     exit(0);
 })
 
