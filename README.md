@@ -19,7 +19,7 @@ Did you ever heard "that's like looking for a needle in a haystack"? Well, this 
 ```diff
 + Working Features 
 	• Minecraft Scanner - Using the moduel node-masscan a wrapper for masscan. 
-	• Conbinient improvements - Some improvements that were useful for me.
+	• Convinient improvements - Some improvements that were useful for me.
 - To Do
     • Nothing - As it is a simple fork and a simple program i dont have intended to put much more work into it.
 ```
